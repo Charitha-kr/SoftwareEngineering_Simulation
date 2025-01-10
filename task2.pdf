@@ -1,0 +1,137 @@
+
+### Architecture Overview
+
+The architecture consists of several key components:
+
+1. **Processor Class**: This is the main class responsible for configuring modes and databases and processing incoming data.
+2. **Modes**: Each mode will implement a specific behavior for handling data.
+3. **Databases**: Each database will implement methods for connecting, inserting, and validating data.
+4. **DataPoint Class**: Represents both raw and processed data points.
+5. **Enums for Modes and Databases**: These will define the available modes and database types.
+
+### Implementation Design
+
+#### 1. Enums for ModeIdentifier and DatabaseIdentifier
+
+```java
+public enum ModeIdentifier {
+    DUMP,
+    PASSTHROUGH,
+    VALIDATE
+}
+
+public enum DatabaseIdentifier {
+    POSTGRES,
+    REDIS,
+    ELASTIC
+}
+```
+
+#### 2. DataPoint Class
+
+```java
+public class DataPoint {
+    private String data;
+
+    public DataPoint(String data) {
+        this.data = data;
+    }
+
+    public String getData() {
+        return data;
+    }
+}
+```
+
+#### 3. Database Interface
+
+Define an interface for database operations that each database implementation will follow.
+
+```java
+public interface Database {
+    void connect();
+    void insert(DataPoint dataPoint);
+    boolean validate(DataPoint dataPoint);
+}
+```
+
+#### 4. Concrete Database Implementations
+
+Each database type will implement the `Database` interface.
+
+```java
+public class PostgresDatabase implements Database {
+    @Override
+    public void connect() {
+        // Implementation for connecting to Postgres
+    }
+
+    @Override
+    public void insert(DataPoint dataPoint) {
+        // Implementation for inserting into Postgres
+    }
+
+    @Override
+    public boolean validate(DataPoint dataPoint) {
+        // Implementation for validating against Postgres
+        return true; // Placeholder
+    }
+}
+
+// Similar classes for RedisDatabase and ElasticDatabase...
+```
+
+#### 5. Processor Class
+
+The `Processor` class manages the current mode and database, implementing the required methods.
+
+```java
+import java.util.HashMap;
+import java.util.Map;
+
+public class Processor {
+    private ModeIdentifier currentMode;
+    private Database currentDatabase;
+    
+    private Map<DatabaseIdentifier, Database> databases = new HashMap<>();
+
+    public Processor() {
+        databases.put(DatabaseIdentifier.POSTGRES, new PostgresDatabase());
+        databases.put(DatabaseIdentifier.REDIS, new RedisDatabase());
+        databases.put(DatabaseIdentifier.ELASTIC, new ElasticDatabase());
+        // Initialize connections if necessary
+    }
+
+    public void configure(ModeIdentifier mode, DatabaseIdentifier dbIdentifier) {
+        this.currentMode = mode;
+        this.currentDatabase = databases.get(dbIdentifier);
+        currentDatabase.connect(); // Ensure the database is connected
+    }
+
+    public void process(DataPoint dataPoint) {
+        switch (currentMode) {
+            case DUMP:
+                // Simply drop the data (do nothing)
+                break;
+            case PASSTHROUGH:
+                currentDatabase.insert(dataPoint);
+                break;
+            case VALIDATE:
+                if (currentDatabase.validate(dataPoint)) {
+                    currentDatabase.insert(dataPoint);
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported mode");
+        }
+    }
+}
+```
+
+### Key Design Principles Applied
+
+- **Single Responsibility Principle (SRP)**: Each class has a clear responsibility (e.g., `Processor` handles configuration and processing, while each `Database` class handles its own operations).
+- **Open/Closed Principle (OCP)**: The processor can be extended with new modes or databases without modifying existing code.
+- **Dependency Inversion Principle (DIP)**: The processor depends on abstractions (`Database` interface) rather than concrete implementations.
+- **Encapsulation**: The internal workings of each database are hidden from the `Processor`, allowing changes to be made independently.
+
